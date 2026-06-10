@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horarios de Presentación</title>
+<style>
+  :root {
+    --verde: #1a7a5e;
+    --verde-claro: #e6f5f0;
+    --verde-hover: #d0ede4;
+    --azul: #2563a8;
+    --azul-claro: #e8f0fb;
+    --gris: #f0eeea;
+    --gris-text: #8a8780;
+    --bloqueado: #e8e5df;
+    --bloqueado-text: #a8a49e;
+    --amarillo: #f5a623;
+    --amarillo-claro: #fef4e0;
+    --rojo: #c0392b;
+    --texto: #1a1917;
+    --borde: #ddd9d2;
+    --fondo: #faf9f7;
+    --radio: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--verde);
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: -.01em; }
+  header p { font-size: .8rem; opacity: .85; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #4ade80; display: inline-block; margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .live-badge {
+    font-size: .7rem; background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px; padding: 2px 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  main { padding: 1rem 1rem 2rem; max-width: 1100px; margin: 0 auto; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin: 1rem 0; padding: .75rem 1rem;
+    background: #fff; border: 1px solid var(--borde); border-radius: var(--radio);
+  }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #555; }
+  .dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .d-libre { background: var(--verde-claro); border: 1px solid var(--verde); }
+  .d-tomado { background: var(--azul-claro); border: 1px solid var(--azul); }
+  .d-bloq { background: var(--bloqueado); border: 1px solid #c5c0b8; }
+  .d-yo { background: var(--amarillo-claro); border: 1px solid var(--amarillo); }
+
+  .counter {
+    font-size: .82rem; color: #555;
+    margin-bottom: .75rem;
+  }
+  .counter strong { color: var(--texto); }
+
+  .grid-wrap { overflow-x: auto; }
+  .grid {
+    display: grid;
+    grid-template-columns: 58px repeat(5, minmax(100px, 1fr));
+    gap: 2px;
+    min-width: 520px;
+  }
+  .hdr {
+    font-size: .72rem; font-weight: 600; text-align: center;
+    padding: 6px 4px; background: #fff;
+    border: 1px solid var(--borde); border-radius: var(--radio);
+    color: #555; letter-spacing: .02em; text-transform: uppercase;
+  }
+  .hdr.corner { background: transparent; border-color: transparent; }
+  .time-lbl {
+    font-size: .68rem; color: var(--gris-text);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 5px; font-variant-numeric: tabular-nums;
+  }
+  .slot {
+    font-size: .7rem; text-align: center; padding: 5px 3px;
+    border-radius: var(--radio); cursor: pointer;
+    transition: background .12s, transform .1s;
+    user-select: none; line-height: 1.3; min-height: 34px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1px solid transparent;
+  }
+  .slot:active { transform: scale(.95); }
+  .slot.libre {
+    background: var(--verde-claro); color: #0a5a3e;
+    border-color: #8dd4b8;
+  }
+  .slot.libre:hover { background: var(--verde-hover); }
+  .slot.bloqueado {
+    background: var(--bloqueado); color: var(--bloqueado-text);
+    cursor: not-allowed; font-size: .65rem;
+  }
+  .slot.tomado {
+    background: var(--azul-claro); color: #0c3d7a;
+    border-color: #9dbfe8; cursor: default;
+  }
+  .slot.yo {
+    background: var(--amarillo-claro); color: #7a4500;
+    border-color: #f0b950;
+  }
+  .slot.yo:hover { background: #fdebc0; }
+  .nombre-chip {
+    font-size: .65rem; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 90px;
+  }
+
+  /* Modal */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 10px;
+    padding: 1.5rem; width: 320px; max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+  }
+  .modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: .25rem; }
+  .modal .sub { font-size: .82rem; color: #666; margin-bottom: 1rem; }
+  .modal input {
+    width: 100%; padding: 8px 10px; margin-bottom: .75rem;
+    border: 1px solid var(--borde); border-radius: var(--radio);
+    font-size: .9rem; color: var(--texto);
+    background: var(--fondo);
+  }
+  .modal input:focus { outline: none; border-color: var(--verde); }
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 8px; border: 1px solid var(--borde);
+    border-radius: var(--radio); background: transparent;
+    color: var(--texto); font-size: .85rem; cursor: pointer;
+  }
+  .btn:hover { background: var(--gris); }
+  .btn.primary { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .btn.primary:hover { background: #145f48; }
+  .btn.danger { color: var(--rojo); border-color: #f0a0a0; }
+  .btn.danger:hover { background: #fdf0ee; }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    background: #222; color: #fff; padding: 10px 18px;
+    border-radius: 20px; font-size: .82rem; z-index: 500;
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .loading-banner {
+    text-align: center; padding: 2rem;
+    font-size: .9rem; color: var(--gris-text);
+  }
+  .error-banner {
+    background: #fdf0ee; border: 1px solid #f0a0a0;
+    border-radius: var(--radio); padding: .75rem 1rem;
+    font-size: .82rem; color: var(--rojo); margin-bottom: 1rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Horarios de Presentación</h1>
+    <p>Selecciona tu franja e ingresa tu nombre</p>
+  </div>
+  <div class="live-badge">
+    <span class="status-dot"></span> En vivo
+  </div>
+</header>
+
+<main>
+  <div id="errorBanner" class="error-banner" style="display:none"></div>
+
+  <div class="legend">
+    <span class="leg"><span class="dot d-libre"></span>Disponible</span>
+    <span class="leg"><span class="dot d-tomado"></span>Reservado por otro</span>
+    <span class="leg"><span class="dot d-bloq"></span>No disponible</span>
+    <span class="leg"><span class="dot d-yo"></span>Tu reserva</span>
+  </div>
+
+  <p class="counter" id="counter">Cargando...</p>
+
+  <div class="grid-wrap">
+    <div class="grid" id="grid">
+      <div class="loading-banner" style="grid-column:1/-1">Conectando...</div>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" onclick="cancelarMia()" style="max-width:200px">✕ Eliminar mi reserva</button>
+  </div>
+</main>
+
+<!-- Modal reservar -->
+<div class="overlay" id="modalReservar">
+  <div class="modal">
+    <h3>Reservar horario</h3>
+    <p class="sub" id="mSub"></p>
+    <input type="text" id="mNombre" placeholder="Tu nombre completo" maxlength="60"/>
+    <div class="btn-row">
+      <button class="btn" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn primary" onclick="confirmarReserva()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal info -->
+<div class="overlay" id="modalInfo">
+  <div class="modal">
+    <h3>Horario reservado</h3>
+    <p class="sub" id="iSub"></p>
+    <div class="btn-row">
+      <button class="btn" onclick="cerrarInfo()">Cerrar</button>
+      <button class="btn danger" onclick="liberarSlot()" id="btnLiberar" style="display:none">Liberar (admin)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ══════════════════════════════════════════════════════
+  //  🔧 CONFIGURACIÓN FIREBASE — reemplaza estos valores
+  //     con los de tu proyecto en console.firebase.google.com
+  // ══════════════════════════════════════════════════════
+  const firebaseConfig = {
+    apiKey: "TU_API_KEY",
+    authDomain: "TU_PROJECT.firebaseapp.com",
+    databaseURL: "https://TU_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "TU_PROJECT",
+    storageBucket: "TU_PROJECT.appspot.com",
+    messagingSenderId: "TU_SENDER_ID",
+    appId: "TU_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // ── Constantes ──────────────────────────────────────
+  const DIAS     = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+  const DIA_KEYS = ['lun','mar','mie','jue','vie'];
+
+  function toMin(h,m){ return h*60+m; }
+
+  // Franjas 9:00–18:00 cada 25 min
+  const SLOTS = [];
+  for(let t = toMin(9,0); t+25 <= toMin(18,0); t += 25){
+    const h=Math.floor(t/60), m=t%60;
+    const h2=Math.floor((t+25)/60), m2=(t+25)%60;
+    SLOTS.push({
+      start: t,
+      label: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
+      fin:   `${String(h2).padStart(2,'0')}:${String(m2).padStart(2,'0')}`
+    });
+  }
+
+  // Bloques no disponibles
+  const BLOQUEADOS = {
+    lun: [[toMin(15,30), toMin(17,40)]],
+    jue: [[toMin(11,0),  toMin(12,10)]],
+    vie: [[toMin(10,50), toMin(12,30)]]
+  };
+
+  function bloqueado(dk, start){
+    return (BLOQUEADOS[dk]||[]).some(([s,e])=> start>=s && start<e);
+  }
+
+  // Estado local
+  let reservas  = {};
+  let miClave   = localStorage.getItem('miClave_presentaciones') || null;
+  let pendiente = null;
+  let infoActual = null;
+
+  // ── Firebase listener ───────────────────────────────
+  const dbRef = ref(db, 'reservas');
+
+  onValue(dbRef, snap => {
+    reservas = snap.val() || {};
+    renderGrid();
+  }, err => {
+    mostrarError('No se pudo conectar con la base de datos. Revisa la configuración de Firebase.');
+    console.error(err);
+  });
+
+  // ── Render ───────────────────────────────────────────
+  function renderGrid(){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+
+    // Esquina vacía
+    const corner = document.createElement('div');
+    corner.className = 'hdr corner';
+    grid.appendChild(corner);
+
+    DIAS.forEach(d => {
+      const h = document.createElement('div');
+      h.className = 'hdr';
+      h.textContent = d;
+      grid.appendChild(h);
+    });
+
+    let libres=0, tomados=0;
+
+    SLOTS.forEach((slot, i) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'time-lbl';
+      lbl.textContent = slot.label;
+      grid.appendChild(lbl);
+
+      DIA_KEYS.forEach((dk, di) => {
+        const k   = `${dk}_${i}`;
+        const res = reservas[k];
+        const esBlq = bloqueado(dk, slot.start);
+        const esMio = k === miClave;
+        const cell = document.createElement('div');
+
+        if(esBlq){
+          cell.className = 'slot bloqueado';
+          cell.title = 'No disponible';
+          cell.textContent = '—';
+        } else if(res){
+          tomados++;
+          if(esMio){
+            cell.className = 'slot yo';
+            cell.innerHTML = `<span class="nombre-chip">Tú ✓</span>`;
+            cell.title = `Tu reserva: ${res}`;
+            cell.onclick = () => mostrarInfoMio(k, res, slot, DIAS[di]);
+          } else {
+            cell.className = 'slot tomado';
+            const primer = res.split(' ')[0];
+            cell.innerHTML = `<span class="nombre-chip">${primer}</span>`;
+            cell.title = res;
+            cell.onclick = () => mostrarInfo(k, res, slot, DIAS[di]);
+          }
+        } else {
+          libres++;
+          cell.className = 'slot libre';
+          cell.title = `Reservar ${slot.label}–${slot.fin}`;
+          cell.onclick = () => abrirModal(k, slot, DIAS[di]);
+        }
+        grid.appendChild(cell);
+      });
+    });
+
+    const total = libres + tomados;
+    document.getElementById('counter').innerHTML =
+      `<strong>${tomados}</strong> de <strong>${total}</strong> franjas reservadas &nbsp;·&nbsp; <strong>${libres}</strong> disponibles`;
+  }
+
+  // ── Modales ──────────────────────────────────────────
+  window.abrirModal = function(k, slot, dia){
+    pendiente = {k, slot, dia};
+    document.getElementById('mSub').textContent = `${dia} ${slot.label}–${slot.fin}`;
+    document.getElementById('mNombre').value = '';
+    document.getElementById('modalReservar').classList.add('open');
+    setTimeout(()=>document.getElementById('mNombre').focus(), 80);
+  };
+
+  window.cerrarModal = function(){
+    document.getElementById('modalReservar').classList.remove('open');
+    pendiente = null;
+  };
+
+  window.confirmarReserva = async function(){
+    const nombre = document.getElementById('mNombre').value.trim();
+    if(!nombre){ document.getElementById('mNombre').focus(); return; }
+    if(!pendiente) return;
+
+    // Si ya tenía reserva anterior, la borra
+    if(miClave && miClave !== pendiente.k){
+      await remove(ref(db, `reservas/${miClave}`));
+    }
+
+    await set(ref(db, `reservas/${pendiente.k}`), nombre);
+    miClave = pendiente.k;
+    localStorage.setItem('miClave_presentaciones', miClave);
+    cerrarModal();
+    toast('✓ Reserva guardada');
+  };
+
+  window.mostrarInfo = function(k, nombre, slot, dia){
+    infoActual = k;
+    document.getElementById('iSub').textContent = `${dia} ${slot.label}–${slot.fin}: ${nombre}`;
+    document.getElementById('btnLiberar').style.display = 'none';
+    document.getElementById('modalInfo').classList.add('open');
+  };
+
+  window.mostrarInfoMio = function(k, nombre, slot, dia){
+    infoActual = k;
+    document.getElementById('iSub').textContent = `${dia} ${slot.label}–${slot.fin}: ${nombre}`;
+    document.getElementById('btnLiberar').style.display = 'inline-block';
+    document.getElementById('modalInfo').classList.add('open');
+  };
+
+  window.cerrarInfo = function(){
+    document.getElementById('modalInfo').classList.remove('open');
+    infoActual = null;
+  };
+
+  window.liberarSlot = async function(){
+    if(!infoActual) return;
+    await remove(ref(db, `reservas/${infoActual}`));
+    if(infoActual === miClave){
+      miClave = null;
+      localStorage.removeItem('miClave_presentaciones');
+    }
+    cerrarInfo();
+    toast('Reserva eliminada');
+  };
+
+  window.cancelarMia = async function(){
+    if(!miClave){ toast('No tienes reserva activa'); return; }
+    await remove(ref(db, `reservas/${miClave}`));
+    miClave = null;
+    localStorage.removeItem('miClave_presentaciones');
+    toast('Tu reserva fue eliminada');
+  };
+
+  // ── Toast ────────────────────────────────────────────
+  function toast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 2500);
+  }
+
+  function mostrarError(msg){
+    const el = document.getElementById('errorBanner');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // Cerrar modales al hacer clic fuera
+  document.getElementById('modalReservar').addEventListener('click', e => {
+    if(e.target === e.currentTarget) cerrarModal();
+  });
+  document.getElementById('modalInfo').addEventListener('click', e => {
+    if(e.target === e.currentTarget) cerrarInfo();
+  });
+  document.getElementById('mNombre').addEventListener('keydown', e => {
+    if(e.key==='Enter') confirmarReserva();
+    if(e.key==='Escape') cerrarModal();
+  });
+</script>
+</body>
+</html>
